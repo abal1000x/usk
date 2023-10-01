@@ -1,5 +1,5 @@
 #include "hardware/flash.h"
-#define OFFSET_DIV 10
+#define OFFSET_DIV 8
 
 /// These three parameter are connected
 #define FREQUENCY_MHZ 200
