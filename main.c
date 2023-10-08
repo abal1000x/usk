@@ -24,7 +24,7 @@ bool write_payload();
 // overclock to 300 MHz
 void init_system() {
     vreg_set_voltage(VREG_VOLTAGE_1_30);
-	set_sys_clock_khz(300000, true);
+	set_sys_clock_khz(FREQUENCY_MHZ * 1000, true);
 }
 
 // filled within "fast check" on eMMC init

@@ -1,7 +1,10 @@
 #include "hardware/flash.h"
 #define OFFSET_DIV 10
-#define OFFSET_MIN 9200
-#define OFFSET_MAX 10300
+
+/// These three parameter are connected
+#define FREQUENCY_MHZ 200
+#define OFFSET_MIN (FREQUENCY_MHZ * 9200 / 300)
+#define OFFSET_MAX (FREQUENCY_MHZ * 10300 / 300)
 
 #define VER_HI 200
 #define VER_LO 74
