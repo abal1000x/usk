@@ -9,6 +9,9 @@ set(CMAKE_BUILD_TYPE MinSizeRel)
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
+# We also need PICO EXTRAS
+include(pico_extras_import.cmake)
+
 project(usk C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK
@@ -39,6 +42,7 @@ target_link_libraries(usk
         hardware_pio
         hardware_adc
         hardware_flash
+        hardware_rosc
         )
 
 pico_add_extra_outputs(usk)

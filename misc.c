@@ -2,11 +2,15 @@
 #include "hardware/pio.h"
 #include "pins.h"
 #include <string.h>
+#include <hardware/xosc.h>
+#include <hardware/rosc.h>
+#include <hardware/pll.h>
 #include "hardware/vreg.h"
 #include "ws2812.pio.h"
 #include "board_detect.h"
 #include "misc.h"
 #include "board_detect.h"
+#include "hardware/structs/syscfg.h"
 
 extern int ws_pio_offset;
 
@@ -23,25 +27,131 @@ extern int ws_pio_offset;
 #define GPIO_IE PADS_BANK0_GPIO0_IE_BITS
 #define GPIO_OD_PD (GPIO_OD | PADS_BANK0_GPIO0_PDE_BITS)
 
-#define PTR_SAFE_RAM4 (void*)0x20040200
+#define VREG_VOLTAGE_0_80 (VREG_VOLTAGE_0_85 - 1)
 
-typedef void nopar();
+void vreg_enable(enum vreg_en en) {
+    hw_write_masked(&vreg_and_chip_reset_hw->vreg, ((uint)en) << VREG_AND_CHIP_RESET_VREG_EN_LSB, VREG_AND_CHIP_RESET_VREG_EN_BITS);
+}
 
-void __not_in_flash_func(zzz)() {
-    static bool not_first = 0;
-    if(!not_first)
-    {
-        not_first = 1;
-        memcpy(PTR_SAFE_RAM4, (void*)((uint32_t)zzz - 1), 0x200);
-        ((nopar*)(PTR_SAFE_RAM4 + 1))();
+void vreg_hiz(enum vreg_hiz hiz) {
+    hw_write_masked(&vreg_and_chip_reset_hw->vreg, ((uint)hiz) << VREG_AND_CHIP_RESET_VREG_HIZ_LSB, VREG_AND_CHIP_RESET_VREG_HIZ_BITS);
+}
+
+void bod_enable(enum bod_en en) {
+    hw_write_masked(&vreg_and_chip_reset_hw->bod, ((uint)en) << VREG_AND_CHIP_RESET_BOD_EN_LSB, VREG_AND_CHIP_RESET_BOD_EN_BITS);
+}
+
+void syscfg_mempowerdown(enum syscfg_mempowerdown name, enum syscfg_mempowerdown_state state) {
+    uint32_t lsb, bits;
+    switch (name) {
+        case SYSCFG_MEMPOWERDOWN_SRAM0:
+            lsb = SYSCFG_MEMPOWERDOWN_SRAM0_LSB;
+            bits = SYSCFG_MEMPOWERDOWN_SRAM0_BITS;
+            break;
+        case SYSCFG_MEMPOWERDOWN_SRAM1:
+            lsb = SYSCFG_MEMPOWERDOWN_SRAM1_LSB;
+            bits = SYSCFG_MEMPOWERDOWN_SRAM1_BITS;
+            break;
+        case SYSCFG_MEMPOWERDOWN_SRAM2:
+            lsb = SYSCFG_MEMPOWERDOWN_SRAM2_LSB;
+            bits = SYSCFG_MEMPOWERDOWN_SRAM2_BITS;
+            break;
+        case SYSCFG_MEMPOWERDOWN_SRAM3:
+            lsb = SYSCFG_MEMPOWERDOWN_SRAM3_LSB;
+            bits = SYSCFG_MEMPOWERDOWN_SRAM3_BITS;
+            break;
+        case SYSCFG_MEMPOWERDOWN_SRAM4:
+            lsb = SYSCFG_MEMPOWERDOWN_SRAM4_LSB;
+            bits = SYSCFG_MEMPOWERDOWN_SRAM4_BITS;
+            break;
+        case SYSCFG_MEMPOWERDOWN_SRAM5:
+            lsb = SYSCFG_MEMPOWERDOWN_SRAM5_LSB;
+            bits = SYSCFG_MEMPOWERDOWN_SRAM5_BITS;
+            break;
+        case SYSCFG_MEMPOWERDOWN_USB:
+            lsb = SYSCFG_MEMPOWERDOWN_USB_LSB;
+            bits = SYSCFG_MEMPOWERDOWN_USB_BITS;
+            break;
+        case SYSCFG_MEMPOWERDOWN_ROM:
+            lsb = SYSCFG_MEMPOWERDOWN_ROM_LSB;
+            bits = SYSCFG_MEMPOWERDOWN_ROM_BITS;
+            break;
     }
-    *(uint32_t*)(0x4000803C + 0x3000) = 1;  // go to 12 MHz
-    uint32_t * vreg = (uint32_t*)0x40064000;
-    vreg[1] &= ~1;  // disable brownout
-    *(uint32_t*)0x40060000 = 0x00d1e000; // disable rosc
-    *(uint32_t*)0x40004018 = 0xFF ^ (1 << 4);  // disable SRAMs except ours
-    vreg[0] = 1;    // lowest possible power
-    *(uint32_t*)0x40024000 = 0x00d1e000; // disable xosc
+    hw_write_masked(&syscfg_hw->mempowerdown, ((uint)state) << lsb, bits);
+}
+
+void __no_inline_not_in_flash_func(zzz)() {
+    uint src_hz = 6.5 * MHZ;
+    clock_configure(clk_ref,
+                    CLOCKS_CLK_REF_CTRL_SRC_VALUE_ROSC_CLKSRC_PH,
+                    0, // No aux mux
+                    src_hz,
+                    src_hz);
+
+    clock_configure(clk_sys,
+                    CLOCKS_CLK_SYS_CTRL_SRC_VALUE_CLK_REF,
+                    0,
+                    src_hz,
+                    src_hz);
+
+    clock_stop(clk_usb);
+    clock_stop(clk_adc);
+
+    clock_configure(clk_rtc,
+                    0, // No GLMUX
+                    CLOCKS_CLK_RTC_CTRL_AUXSRC_VALUE_ROSC_CLKSRC_PH,
+                    src_hz,
+                    46875);
+
+    clock_configure(clk_peri,
+                    0,
+                    CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLK_SYS,
+                    src_hz,
+                    src_hz);
+
+    pll_deinit(pll_sys);
+    pll_deinit(pll_usb);
+
+    uint32_t address = (uint32_t) zzz;
+    if (!(
+        (SRAM_STRIPED_BASE <= address && address < SRAM_STRIPED_END) ||
+        (SRAM0_BASE <= address && address < SRAM1_BASE)
+    )) {
+        syscfg_mempowerdown(SYSCFG_MEMPOWERDOWN_SRAM0, SYSCFG_MEMPOWERDOWN_STATE_TRUE);
+    }
+    if (!(
+        (SRAM_STRIPED_BASE <= address && address < SRAM_STRIPED_END) ||
+        (SRAM1_BASE <= address && address < SRAM2_BASE)
+    )) {
+        syscfg_mempowerdown(SYSCFG_MEMPOWERDOWN_SRAM1, SYSCFG_MEMPOWERDOWN_STATE_TRUE);
+    }
+    if (!(
+        (SRAM_STRIPED_BASE <= address && address < SRAM_STRIPED_END) ||
+        (SRAM2_BASE <= address && address < SRAM3_BASE)
+    )) {
+        syscfg_mempowerdown(SYSCFG_MEMPOWERDOWN_SRAM2, SYSCFG_MEMPOWERDOWN_STATE_TRUE);
+    }
+    if (!(
+        (SRAM_STRIPED_BASE <= address && address < SRAM_STRIPED_END) ||
+        (SRAM3_BASE <= address && address < SRAM4_BASE)
+    )) {
+        syscfg_mempowerdown(SYSCFG_MEMPOWERDOWN_SRAM3, SYSCFG_MEMPOWERDOWN_STATE_TRUE);
+    }
+    if (!(SRAM4_BASE <= address && address < SRAM5_BASE)) {
+        syscfg_mempowerdown(SYSCFG_MEMPOWERDOWN_SRAM4, SYSCFG_MEMPOWERDOWN_STATE_TRUE);
+    }
+    if (!(SRAM5_BASE <= address && address < SRAM_END)) {
+        syscfg_mempowerdown(SYSCFG_MEMPOWERDOWN_SRAM5, SYSCFG_MEMPOWERDOWN_STATE_TRUE);
+    }
+    syscfg_mempowerdown(SYSCFG_MEMPOWERDOWN_USB, SYSCFG_MEMPOWERDOWN_STATE_TRUE);
+    syscfg_mempowerdown(SYSCFG_MEMPOWERDOWN_ROM, SYSCFG_MEMPOWERDOWN_STATE_TRUE);
+
+    vreg_set_voltage(VREG_VOLTAGE_0_80);
+    xosc_disable();
+    bod_enable(BOD_EN_DISABLED);
+    vreg_enable(VREG_EN_ENABLED);
+//    vreg_hiz(VREG_HIZ_ENABLED);
+    rosc_disable();
     while(1);
 }
 
