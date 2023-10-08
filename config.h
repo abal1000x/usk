@@ -3,11 +3,11 @@
 
 /// These three parameter are connected
 #define FREQUENCY_MHZ 200
-#define OFFSET_MIN (FREQUENCY_MHZ * 9200 / 300)
-#define OFFSET_MAX (FREQUENCY_MHZ * 10300 / 300)
+#define OFFSET_MIN (FREQUENCY_MHZ * 6200 / 200)
+#define OFFSET_MAX (FREQUENCY_MHZ * 6900 / 200)
 
 #define VER_HI 200
-#define VER_LO 74
+#define VER_LO 75
 
 bool is_configured();
 void init_config();
