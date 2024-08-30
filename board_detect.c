@@ -20,7 +20,7 @@ enum board_type {
 
 enum board_type cur_board = BOARD_WS;
 
-bool detect_by_pull_up(int frc_pin, int det_pin, bool up)
+bool detect_by_pull(int frc_pin, int det_pin, bool up)
 {
     bool result = false;
     if (frc_pin >= 0)
@@ -40,22 +40,22 @@ bool detect_by_pull_up(int frc_pin, int det_pin, bool up)
 
 bool test_xiao()
 {
-    return detect_by_pull_up(1, 2, 1);
+    return detect_by_pull(1, 2, 1);
 }
 
 bool test_itsy()
 {
-    return detect_by_pull_up(3, 2, 1);
+    return detect_by_pull(3, 2, 1);
 }
 
 bool test_pico()
 {
-    return detect_by_pull_up(-1, 22, 1);
+    return detect_by_pull(-1, 22, 1);
 }
 
 bool test_ws()
 {
-    return detect_by_pull_up(-1, 25, 1);
+    return detect_by_pull(-1, 25, 1);
 }
 
 bool test_wt()
@@ -65,7 +65,7 @@ bool test_wt()
 
 bool test_sqc()
 {
-    return detect_by_pull_up(-1, 17, 1);
+    return detect_by_pull(-1, 17, 1);
 }
 
 void detect_board()
