@@ -20,13 +20,16 @@ bool wait_for_boot(int timeout_ms) {
     bool was_cmd1 = false;
     int reset_attempts = 0;
 
-    while(!time_reached(tio_full)) {
+    while(1) {
         if (time_reached(tio_cmd1))
         {
             if (reset_attempts > 4)
             {
                 if (was_read_zero) {
                     halt_with_error(1, 3);
+                }
+                else if (tio_cmd1 != tio_full) {
+                    halt_with_error(0, 3);
                 }
                 else if (was_cmd1) {
                     halt_with_error(2, 3);
@@ -66,6 +69,4 @@ bool wait_for_boot(int timeout_ms) {
             last_word = word;
         }
     }
-    halt_with_error(0, 3);
-    return false;
 }
