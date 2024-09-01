@@ -25,7 +25,15 @@ bool wait_for_boot(int timeout_ms) {
         {
             if (reset_attempts > 4)
             {
-                halt_with_error(0, 3);
+                if (was_read_zero) {
+                    halt_with_error(1, 3);
+                }
+                else if (was_cmd1) {
+                    halt_with_error(2, 3);
+                } else {
+                    halt_with_error(3, 3);
+                }
+                return false;
             }
             reset_attempts++;
             reset_cpu();
@@ -58,13 +66,6 @@ bool wait_for_boot(int timeout_ms) {
             last_word = word;
         }
     }
-    if (was_read_zero) {
-        halt_with_error(1, 3);
-    }
-    else if (was_cmd1) {
-        halt_with_error(2, 3);
-    } else {
-        halt_with_error(3, 3);
-    }
+    halt_with_error(0, 3);
     return false;
 }
