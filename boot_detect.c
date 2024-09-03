@@ -56,7 +56,7 @@ bool wait_for_boot(int timeout_ms) {
             }
             else if (last_word == 0x51000000 && word == 0x0055) //read block 0
             {
-                tio_cmd1 = make_timeout_time_ms(100);
+                tio_cmd1 = make_timeout_time_ms(400);
                 was_read_zero = true;
             } else if (was_read_zero && last_word == 0x4D000200 && word == 0x00B1) // read status - erista only
             {
