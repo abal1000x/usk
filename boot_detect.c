@@ -45,7 +45,7 @@ bool wait_for_boot(int timeout_ms) {
             }
             reset_attempts++;
             reset_cpu();
-            tio_shrt = tio_full;
+            tio_shrt = make_timeout_time_ms(1000);
         }
         if(!pio_sm_is_rx_fifo_empty(pio1, 0))
         {
