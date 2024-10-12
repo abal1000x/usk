@@ -7,7 +7,7 @@
 #define OFFSET_MAX (FREQUENCY_MHZ * 6900 / 200)
 
 #define VER_HI 200
-#define VER_LO 75
+#define VER_LO 76
 
 bool is_configured();
 void init_config();
